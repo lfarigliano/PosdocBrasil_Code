@@ -57,23 +57,37 @@ with open("OUTCAR", "r") as file_outcar:
         if 'Following cartesian coordinates' in line:
             line_kpoints_outcar=i
             break
-
+    for i, line in enumerate(lines_outcar):
+        if 'Following reciprocal coordinates:' in line:
+            line_kpoints_outcar_reciprocal=i
+            break
+        
 kpoints_tmp=lines_outcar[line_kpoints_outcar+2:line_kpoints_outcar+2+nkpoints]
+kpoints_tmp_reciprocal=lines_outcar[line_kpoints_outcar_reciprocal+2:line_kpoints_outcar_reciprocal+2+nkpoints]
 
 for index, l in enumerate(kpoints_tmp):
     peso=(l.split())[3]
     if float(peso) == 0:
         indice_primero_cero = index
         break  # Salimos del bucle al encontrar el primer 0
+for index, l in enumerate(kpoints_tmp_reciprocal):
+    peso=(l.split())[3]
+    if float(peso) == 0:
+        indice_primero_cero_reciprocal = index
+        break  # Salimos del bucle al encontrar el primer 0
 
 x_kpoints=kpoints_tmp[indice_primero_cero:len(kpoints_tmp)]
-
+x_kpoints_reciprocal=kpoints_tmp_reciprocal[indice_primero_cero_reciprocal:len(kpoints_tmp_reciprocal)]
 x_kpoint_float=[]
+x_kpoint_float_reciprocal=[]
 for linea in x_kpoints:
     elementos = linea.split()[:3]  # Dividir la línea en elementos y tomar los primeros tres
     elementos_flotantes = [float(elemento) for elemento in elementos]  # Convertir a flotantes
     x_kpoint_float.append(elementos_flotantes)
-
+for linea in x_kpoints_reciprocal:
+    elementos = linea.split()[:3]  # Dividir la línea en elementos y tomar los primeros tres
+    elementos_flotantes = [float(elemento) for elemento in elementos]  # Convertir a flotantes
+    x_kpoint_float_reciprocal.append(elementos_flotantes)
 distance=[]
 for i in range(len(x_kpoint_float) - 1):
     punto1 = x_kpoint_float[i]
@@ -152,6 +166,10 @@ for j in range(1, nbands + 1):
             banda_down=j
             e_max_down= max_energy
 
+
+
+
+
 if e_max_up >= e_max_down:
     mayor_valor = e_max_up
 elif e_max_down > e_max_up:
@@ -174,14 +192,22 @@ for j in range(1, nbands + 1):
             banda_down_cond=j
             e_min_down_cond= max_energy
 
+index_x_band_up_V = globals()["band_up_" + str(banda_up)].index(e_max_up)
+index_x_band_down_V = globals()["band_down_" + str(banda_down)].index(e_max_down)
+
+index_x_band_up_C = globals()["band_up_" + str(banda_up_cond)].index(e_min_up_cond)
+index_x_band_down_C = globals()["band_down_" + str(banda_down_cond)].index(e_min_down_cond)
+
+
+
 for j in range(1,nbands+1,1):
     globals()["band_up_" + str(j)] = [x - mayor_valor for x in globals()["band_up_" + str(j)]]
     globals()["band_down_" + str(j)] = [x - mayor_valor for x in globals()["band_down_" + str(j)]]
 
 
 #letras_finales = ['G', 'M', 'K', 'G']
-letras_finales=[]
 
+letras_finales=[]
 letras=[0]
 # Configura la figura
 plt.figure(figsize=(14, 12))
@@ -213,6 +239,40 @@ plt.ylabel('E - E$_{Fermi}$  //  eV')
 
 # Mostrar el gráfico
 plt.savefig('Bands.pdf')
-plt.show()
+#plt.show()
 
 
+#Print Information
+Band_Gap_up=e_min_up_cond-e_max_up
+Band_Gap_down=e_min_down_cond-e_max_down
+Band_Gap_total=min(e_min_up_cond,e_min_down_cond)-max(e_max_up,e_max_down)
+
+
+print("+-------------------------- Summary ----------------------------+")
+print("           Spin Channel:     <UP>       <DOWN>      <TOTAL>      ")
+print("          Band Gap (eV):   ",round(Band_Gap_up,4),"    ",round(Band_Gap_down,4),"     ",round(Band_Gap_total,4))
+print(" Eigenvalue of VBM (eV):   ",round(e_max_up,4),"    ",round(e_max_down,4),"     ",round(max(e_max_up,e_max_down),4))
+print(" Eigenvalue of CBM (eV):   ",round(e_min_up_cond,4),"    ",round(e_min_down_cond,4),"     ",round(min(e_min_up_cond,e_min_down_cond),4))
+if e_max_up >= e_max_down:
+    banda_general_V=banda_up
+    index_x_band_G_V=index_x_band_up_V
+else:
+    banda_general_V=banda_down
+    index_x_band_G_V=index_x_band_down_V
+print("      Band Index of VBM:   ",banda_up,"     ",banda_down,"        ",banda_general_V)
+if e_min_up_cond <= e_min_down_cond:
+    banda_general_C=banda_up_cond
+    index_x_band_G_C=index_x_band_up_C
+else:
+    banda_general_C=banda_down_cond
+    index_x_band_G_C=index_x_band_down_C
+print("      Band Index of CBM:   ",banda_up_cond,"     ",banda_down_cond,"        ",banda_general_C)
+print("+-----------Santos morto-------------+")
+print("      Fermi Energy (eV):      ",round(max(e_max_up,e_max_down),4))
+print("Location of VBM (UP):" ,x_kpoint_float_reciprocal[index_x_band_up_V])
+print("Location of CBM (UP):" ,x_kpoint_float_reciprocal[index_x_band_up_C])
+print("Location of VBM (Down):" ,x_kpoint_float_reciprocal[index_x_band_down_V])
+print("Location of CBM (Down):" ,x_kpoint_float_reciprocal[index_x_band_down_C])
+print("Location of VBM (Total):" ,x_kpoint_float_reciprocal[index_x_band_G_V])
+print("Location of CBM (Total):" ,x_kpoint_float_reciprocal[index_x_band_G_C])
+print("+----------------- Pedro, Daniel and Lucas ---------------------+")
